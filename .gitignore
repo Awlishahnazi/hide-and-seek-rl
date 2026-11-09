@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environments and build
+.venv/
+venv/
+env/
+dist/
+build/
+
+# Training artifacts (publish checkpoints outside git)
+checkpoints/
+wandb/
+runs/
+*.pt
+*.pth
+*.ckpt
+*.onnx
+
+# Large media. Small GIFs and result CSV/JSON stay in git.
+*.mp4
+*.webm
+*.avi
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

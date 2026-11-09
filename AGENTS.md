@@ -1,0 +1,9 @@
+- This repo implements the project described in PROJECT_SPEC.md. Follow it strictly.
+- Work on ONE step of the commit plan at a time. Do not implement future steps.
+- Write small, readable, typed Python (3.10+), with docstrings on public functions.
+- Keep game logic in src/hideseek/env/core.py free of rendering and RL dependencies.
+- Every new function with logic needs a pytest test. Run `pytest -q` before saying a step is done.
+- Everything random must take a seed. Never use global unseeded randomness.
+- Do not add shaping rewards or change the reward without asking.
+- Do not commit checkpoints, wandb folders, or large files.
+- After each step, summarize what changed and propose the commit message.
