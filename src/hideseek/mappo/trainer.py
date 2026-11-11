@@ -158,5 +158,6 @@ class MAPPOTrainer:
                     self.critic_optimizers[team].zero_grad()
                     critic_loss.backward()
                     self.critic_optimizers[team].step()
-                    
-            print(f"Update {update+1}/{total_updates} | Time: {time.time()-t0:.2f}s | Hider Actor Loss: {actor_loss.item():.3f}")
+
+            if update % 5 == 0 or update == total_updates - 1:
+                print(f"Update {update+1}/{total_updates} | Time: {time.time()-t0:.2f}s | Hider Actor Loss: {actor_loss.item():.3f} | Seeker Actor Loss: {actor_loss.item():.3f}")
