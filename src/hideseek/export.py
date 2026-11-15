@@ -5,7 +5,7 @@ import numpy as np
 from hideseek.env.pz_env import HideSeekEnv
 
 def export_episode(output_file="demo/replay.json", n_hiders=2, n_seekers=2, vision_radius=5):
-    env = HideSeekEnv(n_hiders=n_hiders, n_seekers=n_seekers, vision_radius=vision_radius)
+    env = HideSeekEnv(n_hiders=n_hiders, n_seekers=n_seekers, vision_radius=vision_radius, max_steps=500)
     
     obs, _ = env.reset(seed=42)
     
@@ -15,10 +15,9 @@ def export_episode(output_file="demo/replay.json", n_hiders=2, n_seekers=2, visi
         "steps": []
     }
     
-    for step in range(200):
+    for step in range(env.core.max_steps):
         actions_dict = {}
         for agent in env.agents:
-            # --- استفاده از سیاست تصادفی برای حرکت تضمینی ---
             actions_dict[agent] = np.random.randint(0, 6) 
             
         obs, rewards, terms, truncs, infos = env.step(actions_dict)
