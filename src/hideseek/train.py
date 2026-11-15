@@ -27,7 +27,7 @@ def main():
         n_hiders=args.n_hiders,
         n_seekers=args.n_seekers,
         n_boxes=args.n_boxes,
-        vision_radius=args.vision_radius
+        vision_radius=args.vision_radius,
         max_steps=args.max_steps
     )
     trainer = MAPPOTrainer(env)

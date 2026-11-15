@@ -1,12 +1,35 @@
 import json
+import torch
 import os
 import argparse
 import numpy as np
 from hideseek.env.pz_env import HideSeekEnv
+from hideseek.mappo.networks import ActorNetwork
 
-def export_episode(output_file="demo/replay.json", n_hiders=2, n_seekers=2, vision_radius=5):
-    env = HideSeekEnv(n_hiders=n_hiders, n_seekers=n_seekers, vision_radius=vision_radius, max_steps=500)
+def export_episode(hider_model_path, seeker_model_path, output_file="demo/replay.json", n_hiders=2, n_seekers=2, vision_radius=5, max_steps=500):
+    env = HideSeekEnv(n_hiders=n_hiders, n_seekers=n_seekers, vision_radius=vision_radius, max_steps=max_steps)
     
+    obs_space = env.observation_space(env.possible_agents[0])
+    channels = obs_space["grid"].shape[0]
+    grid_size = obs_space["grid"].shape[1]
+    vec_size = obs_space["vec"].shape[0]
+    n_actions = env.action_space(env.possible_agents[0]).n
+    
+    hider_actor = ActorNetwork(channels, grid_size, vec_size, n_actions)
+    seeker_actor = ActorNetwork(channels, grid_size, vec_size, n_actions)
+    
+    if not os.path.exists(hider_model_path) or not os.path.exists(seeker_model_path):
+        print(f"Error: Model files not found.")
+        print(f"Hider: {hider_model_path}")
+        print(f"Seeker: {seeker_model_path}")
+        return
+
+    hider_actor.load_state_dict(torch.load(hider_model_path))
+    seeker_actor.load_state_dict(torch.load(seeker_model_path))
+    
+    hider_actor.eval()
+    seeker_actor.eval()
+
     obs, _ = env.reset(seed=42)
     
     replay_data = {
@@ -17,9 +40,27 @@ def export_episode(output_file="demo/replay.json", n_hiders=2, n_seekers=2, visi
     
     for step in range(env.core.max_steps):
         actions_dict = {}
-        for agent in env.agents:
-            actions_dict[agent] = np.random.randint(0, 6) 
-            
+        with torch.no_grad():
+            for team, agents in [("hider", [a for a in env.agents if a.startswith("hider")]), 
+                                 ("seeker", [a for a in env.agents if a.startswith("seeker")])]:
+                
+                if not agents: continue
+                
+                grids = torch.stack([torch.tensor(obs[a]["grid"], dtype=torch.float32) for a in agents])
+                vecs = torch.stack([torch.tensor(obs[a]["vec"], dtype=torch.float32) for a in agents])
+                batched_obs = {"grid": grids, "vec": vecs}
+                
+                if team == "hider":
+                    logits = hider_actor(batched_obs)
+                else:
+                    logits = seeker_actor(batched_obs)
+                
+                dist = torch.distributions.Categorical(logits=logits)
+                actions = dist.sample()
+                
+                for i, agent in enumerate(agents):
+                    actions_dict[agent] = actions[i].item()
+                    
         obs, rewards, terms, truncs, infos = env.step(actions_dict)
         
         step_data = {
@@ -44,7 +85,10 @@ def export_episode(output_file="demo/replay.json", n_hiders=2, n_seekers=2, visi
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--hider_model", type=str, default="results/checkpoints/hider_actor_h2_s2_v5_b2_seed42_update1000.pth")
+    parser.add_argument("--seeker_model", type=str, default="results/checkpoints/seeker_actor_h2_s2_v5_b2_seed42_update1000.pth")
     parser.add_argument("--output", type=str, default="demo/replay.json")
+    parser.add_argument("--max_steps", type=int, default=500)
     args = parser.parse_args()
     
-    export_episode(args.output)
+    export_episode(args.hider_model, args.seeker_model, args.output, max_steps=args.max_steps)
