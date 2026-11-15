@@ -3,77 +3,209 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hide-and-Seek RL Replay</title>
+    <title>Hide-and-Seek RL - Interactive Demo</title>
     <style>
         :root {
             --bg-color: #0f172a;
-            --card-bg: #1e293b;
+            --card-bg: rgba(30, 41, 59, 0.85);
             --text-color: #f8fafc;
             --primary-color: #38bdf8;
             --wall-color: #334155;
-            --hider-color: #0ea5e9;
-            --seeker-color: #ef4444;
-            --box-color: #d97706;
-            --locked-box-color: #fbbf24;
+            --grid-bg: #f8fafc;
         }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
         body {
             background-color: var(--bg-color);
             color: var(--text-color);
-            font-family: system-ui, -apple-system, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
             min-height: 100vh;
-            margin: 0;
+            padding: 20px;
+            background-image: linear-gradient(135deg, rgba(56,189,248,0.1), transparent);
         }
-        h1 { color: var(--primary-color); margin-bottom: 20px; }
+        h1 { color: var(--primary-color); margin-bottom: 20px; font-size: 2rem; text-shadow: 0 0 10px rgba(56,189,248,0.3); }
+        
+        .dashboard {
+            display: flex;
+            gap: 20px;
+            max-width: 1200px;
+            width: 100%;
+            align-items: flex-start;
+        }
+
+        .main-viewer {
+            flex: 1;
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .canvas-container {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+
+        canvas {
+            background-color: var(--grid-bg);
+            border-radius: 8px;
+            width: 100%;
+            height: auto;
+            max-width: 600px;
+            display: block;
+            margin: 0 auto;
+        }
+
         .controls {
             display: flex;
+            flex-wrap: wrap;
             gap: 15px;
-            margin-bottom: 20px;
+            margin-top: 20px;
             align-items: center;
+            justify-content: center;
         }
+
         button {
             padding: 10px 20px;
             background-color: var(--primary-color);
             color: #fff;
             border: none;
-            border-radius: 6px;
+            border-radius: 8px;
             cursor: pointer;
             font-weight: bold;
-            font-size: 16px;
-            transition: 0.2s;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
-        button:hover { background-color: #0ea5e9; }
-        button:disabled { background-color: #475569; cursor: not-allowed; }
-        #status {
-            font-size: 18px;
+        button:hover { background-color: #0ea5e9; transform: translateY(-2px); }
+        button:disabled { background-color: #475569; cursor: not-allowed; transform: none; }
+
+        .slider-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        input[type=range] {
+            width: 100%;
+            cursor: pointer;
+            accent-color: var(--primary-color);
+        }
+
+        .side-panel {
+            width: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .info-card {
             background: var(--card-bg);
-            padding: 8px 15px;
-            border-radius: 6px;
-            border: 1px solid #334155;
+            backdrop-filter: blur(12px);
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
-        .prep { color: #fbbf24; }
-        .chase { color: #ef4444; }
-        canvas {
-            background-color: #000;
-            border-radius: 8px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+
+        .info-card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+            color: var(--primary-color);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 5px;
+        }
+
+        .phase-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        .prep { background: rgba(251, 191, 36, 0.2); color: #fbbf24; border: 1px solid #fbbf24; }
+        .chase { background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid #ef4444; }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+        .hider-stat { color: #38bdf8; font-weight: bold; }
+        .seeker-stat { color: #ef4444; font-weight: bold; }
+
+        @media (max-width: 900px) {
+            .dashboard { flex-direction: column; }
+            .side-panel { width: 100%; flex-direction: row; }
+            .info-card { flex: 1; }
+        }
+        @media (max-width: 600px) {
+            .side-panel { flex-direction: column; }
+            .controls { flex-direction: column; }
+            .slider-container { width: 100%; }
         }
     </style>
 </head>
 <body>
 
-    <h1>Hide-and-Seek RL Replay</h1>
+    <h1>Multi-Agent Hide & Seek</h1>
     
-    <div class="controls">
-        <button id="play-btn" onclick="togglePlay()">Play</button>
-        <button id="restart-btn" onclick="restart()">Restart</button>
-        <span id="status">Loading...</span>
-    </div>
+    <div class="dashboard">
 
-    <canvas id="gameCanvas" width="600" height="600"></canvas>
+        <div class="main-viewer">
+            <div class="canvas-container">
+                <canvas id="gameCanvas" width="600" height="600"></canvas>
+            </div>
+            
+            <div class="controls">
+                <button id="play-btn" onclick="togglePlay()">Play</button>
+                <button id="restart-btn" onclick="restart()">Restart</button>
+                <div class="slider-container">
+                    <span id="step-label" style="font-size: 0.8rem;">0/0</span>
+                    <input type="range" id="timeline" min="0" max="100" value="0" oninput="scrubTimeline(this.value)">
+                </div>
+            </div>
+        </div>
+
+
+        <div class="side-panel">
+            <div class="info-card">
+                <h3>Game Status</h3>
+                <div style="margin-bottom: 15px;">
+                    <span id="phase-badge" class="phase-badge prep">PREP PHASE</span>
+                </div>
+                <div class="stat-row">
+                    <span>Hiders Alive:</span>
+                    <span class="hider-stat" id="hiders-alive">2</span>
+                </div>
+                <div class="stat-row">
+                    <span>Seekers Active:</span>
+                    <span class="seeker-stat" id="seekers-alive">2</span>
+                </div>
+                <div class="stat-row">
+                    <span>Current Step:</span>
+                    <span id="current-step">0</span>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <h3>Live Rewards</h3>
+                <div class="stat-row">
+                    <span>Hider Team:</span>
+                    <span class="hider-stat" id="hider-reward">0.0</span>
+                </div>
+                <div class="stat-row">
+                    <span>Seeker Team:</span>
+                    <span class="seeker-stat" id="seeker-reward">0.0</span>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
@@ -84,19 +216,17 @@
         let currentStep = 0;
         let isPlaying = false;
         let intervalId = null;
-        let speed = 100; 
+        let speed = 100;
+
 
         fetch('replay.json')
             .then(response => response.json())
             .then(data => {
                 replayData = data;
-                document.getElementById('status').textContent = "Ready to play!";
+                document.getElementById('timeline').max = data.steps.length - 1;
                 drawFrame(0);
             })
-            .catch(error => {
-                console.error("Error loading replay:", error);
-                document.getElementById('status').textContent = "Error loading replay.json";
-            });
+            .catch(error => console.error("Error loading:", error));
 
         function drawFrame(stepIndex) {
             if (!replayData || !replayData.steps[stepIndex]) return;
@@ -104,6 +234,32 @@
             const step = replayData.steps[stepIndex];
             const grid = step.grid;
             
+
+            document.getElementById('step-label').textContent = `${stepIndex}/${replayData.steps.length - 1}`;
+            document.getElementById('current-step').textContent = step.step;
+            
+            const badge = document.getElementById('phase-badge');
+            if (step.is_prep_phase) {
+                badge.textContent = "PREP PHASE (Frozen)";
+                badge.className = "phase-badge prep";
+            } else {
+                badge.textContent = "CHASE PHASE";
+                badge.className = "phase-badge chase";
+            }
+
+
+            let hReward = 0, sReward = 0;
+
+            if(step.rewards) {
+                for(let key in step.rewards) {
+                    if(key.startsWith("hider")) hReward += step.rewards[key];
+                    if(key.startsWith("seeker")) sReward += step.rewards[key];
+                }
+            }
+            document.getElementById('hider-reward').textContent = hReward.toFixed(1);
+            document.getElementById('seeker-reward').textContent = sReward.toFixed(1);
+
+
             ctx.fillStyle = '#f8fafc';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -113,51 +269,41 @@
                     const px = x * cellSize;
                     const py = y * cellSize;
 
-                    if (cell === 1) {
-                        ctx.fillStyle = '#334155'; 
-                        ctx.fillRect(px, py, cellSize, cellSize);
-                    } else if (cell === 2) {
-                        ctx.fillStyle = '#d97706';
-                        ctx.fillRect(px, py, cellSize, cellSize);
-                    } else if (cell === 3) {
-                        ctx.fillStyle = '#fbbf24';
-                        ctx.fillRect(px, py, cellSize, cellSize);
+                    if (cell === 1) { ctx.fillStyle = '#334155'; ctx.fillRect(px, py, cellSize, cellSize); }
+                    else if (cell === 2) { 
+                        ctx.fillStyle = '#d97706'; ctx.fillRect(px, py, cellSize, cellSize); 
+                        ctx.strokeStyle = '#000'; ctx.strokeRect(px, py, cellSize, cellSize);
+                    } else if (cell === 3) { 
+                        ctx.fillStyle = '#fbbf24'; ctx.fillRect(px, py, cellSize, cellSize); 
+                        ctx.strokeStyle = '#000'; ctx.strokeRect(px, py, cellSize, cellSize);
                     }
                 }
             }
 
-            if (step.hiders && Array.isArray(step.hiders)) {
-                step.hiders.forEach((pos, i) => {
-                    drawAgent(pos[0], pos[1], '#0ea5e9', `H${i}`);
-                });
-            }
 
-            if (step.seekers && Array.isArray(step.seekers)) {
-                step.seekers.forEach((pos, i) => {
-                    drawAgent(pos[0], pos[1], '#ef4444', `S${i}`);
-                });
-            }
-
-            // Update Status
-            const statusEl = document.getElementById('status');
-            statusEl.textContent = `${step.is_prep_phase ? 'Phase: PREP (Seekers Frozen)' : 'Phase: CHASE'} | Step: ${step.step}`;
-            statusEl.className = step.is_prep_phase ? 'prep' : 'chase';
+            if (step.hiders) step.hiders.forEach((pos, i) => drawAgent(pos[0], pos[1], '#0ea5e9', `H${i}`));
+            if (step.seekers) step.seekers.forEach((pos, i) => drawAgent(pos[0], pos[1], '#ef4444', `S${i}`));
         }
 
         function drawAgent(x, y, color, label) {
             const centerX = x * cellSize + cellSize / 2;
             const centerY = y * cellSize + cellSize / 2;
-            const radius = cellSize / 2 - 4;
+            
 
             ctx.beginPath();
-            ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+            ctx.arc(centerX, centerY, cellSize * 2, 0, 2 * Math.PI);
+            ctx.fillStyle = color === '#0ea5e9' ? 'rgba(14, 165, 233, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+            ctx.fill();
+
+
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, cellSize / 2 - 4, 0, 2 * Math.PI);
             ctx.fillStyle = color;
             ctx.fill();
             ctx.lineWidth = 2;
             ctx.strokeStyle = '#fff';
             ctx.stroke();
 
-            // Draw Label
             ctx.fillStyle = '#fff';
             ctx.font = 'bold 12px Arial';
             ctx.textAlign = 'center';
@@ -167,22 +313,24 @@
 
         function togglePlay() {
             if (!replayData) return;
+            const btn = document.getElementById('play-btn');
             
             if (isPlaying) {
                 clearInterval(intervalId);
-                document.getElementById('play-btn').textContent = 'Play';
+                btn.textContent = 'Play';
             } else {
                 intervalId = setInterval(() => {
                     if (currentStep < replayData.steps.length - 1) {
                         currentStep++;
+                        document.getElementById('timeline').value = currentStep;
                         drawFrame(currentStep);
                     } else {
                         clearInterval(intervalId);
-                        document.getElementById('play-btn').textContent = 'Play';
+                        btn.textContent = 'Play';
                         isPlaying = false;
                     }
                 }, speed);
-                document.getElementById('play-btn').textContent = 'Pause';
+                btn.textContent = 'Pause';
             }
             isPlaying = !isPlaying;
         }
@@ -192,7 +340,13 @@
             isPlaying = false;
             currentStep = 0;
             document.getElementById('play-btn').textContent = 'Play';
+            document.getElementById('timeline').value = 0;
             drawFrame(0);
+        }
+
+        function scrubTimeline(value) {
+            currentStep = parseInt(value);
+            drawFrame(currentStep);
         }
     </script>
 </body>
