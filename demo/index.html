@@ -78,15 +78,14 @@
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const cellSize = 40; // 15x15 map -> 15 * 40 = 600
+        const cellSize = 40; 
 
         let replayData = null;
         let currentStep = 0;
         let isPlaying = false;
         let intervalId = null;
-        let speed = 100; // milliseconds per frame
+        let speed = 100; 
 
-        // Load the JSON file
         fetch('replay.json')
             .then(response => response.json())
             .then(data => {
@@ -105,11 +104,9 @@
             const step = replayData.steps[stepIndex];
             const grid = step.grid;
             
-            // Clear canvas
             ctx.fillStyle = '#f8fafc';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Draw Grid
             for (let y = 0; y < replayData.map_size; y++) {
                 for (let x = 0; x < replayData.map_size; x++) {
                     const cell = grid[y][x];
@@ -129,8 +126,6 @@
                 }
             }
 
-            // Draw Agents (با استفاده از ساختار جدید)
-            // بررسی می‌کنیم که آیا داده‌ها به صورت آرایه هستند
             if (step.hiders && Array.isArray(step.hiders)) {
                 step.hiders.forEach((pos, i) => {
                     drawAgent(pos[0], pos[1], '#0ea5e9', `H${i}`);
