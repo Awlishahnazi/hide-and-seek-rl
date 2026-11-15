@@ -4,14 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hide-and-Seek RL - Interactive Demo</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
             --bg-color: #0f172a;
             --card-bg: rgba(30, 41, 59, 0.85);
             --text-color: #f8fafc;
             --primary-color: #38bdf8;
-            --wall-color: #334155;
-            --grid-bg: #f8fafc;
+            --wall-color: #1e293b;
+            --grid-bg: #e2e8f0;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
         body {
@@ -48,16 +49,26 @@
             position: relative;
             display: inline-block;
             width: 100%;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 4px solid #334155;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
         }
 
         canvas {
             background-color: var(--grid-bg);
-            border-radius: 8px;
             width: 100%;
             height: auto;
             max-width: 600px;
             display: block;
             margin: 0 auto;
+            background-image: 
+                linear-gradient(45deg, #cbd5e1 25%, transparent 25%), 
+                linear-gradient(-45deg, #cbd5e1 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #cbd5e1 75%), 
+                linear-gradient(-45deg, transparent 75%, #cbd5e1 75%);
+            background-size: 80px 80px;
+            background-position: 0 0, 0 40px, 40px -40px, -40px 0px;
         }
 
         .controls {
@@ -156,22 +167,20 @@
     <h1>Multi-Agent Hide & Seek</h1>
     
     <div class="dashboard">
-
         <div class="main-viewer">
             <div class="canvas-container">
                 <canvas id="gameCanvas" width="600" height="600"></canvas>
             </div>
             
             <div class="controls">
-                <button id="play-btn" onclick="togglePlay()">Play</button>
-                <button id="restart-btn" onclick="restart()">Restart</button>
+                <button id="play-btn" onclick="togglePlay()"><i class="fas fa-play"></i> Play</button>
+                <button id="restart-btn" onclick="restart()"><i class="fas fa-undo"></i> Restart</button>
                 <div class="slider-container">
                     <span id="step-label" style="font-size: 0.8rem;">0/0</span>
                     <input type="range" id="timeline" min="0" max="100" value="0" oninput="scrubTimeline(this.value)">
                 </div>
             </div>
         </div>
-
 
         <div class="side-panel">
             <div class="info-card">
@@ -180,11 +189,11 @@
                     <span id="phase-badge" class="phase-badge prep">PREP PHASE</span>
                 </div>
                 <div class="stat-row">
-                    <span>Hiders Alive:</span>
+                    <span>Hiders:</span>
                     <span class="hider-stat" id="hiders-alive">2</span>
                 </div>
                 <div class="stat-row">
-                    <span>Seekers Active:</span>
+                    <span>Seekers:</span>
                     <span class="seeker-stat" id="seekers-alive">2</span>
                 </div>
                 <div class="stat-row">
@@ -218,7 +227,6 @@
         let intervalId = null;
         let speed = 100;
 
-
         fetch('replay.json')
             .then(response => response.json())
             .then(data => {
@@ -234,7 +242,6 @@
             const step = replayData.steps[stepIndex];
             const grid = step.grid;
             
-
             document.getElementById('step-label').textContent = `${stepIndex}/${replayData.steps.length - 1}`;
             document.getElementById('current-step').textContent = step.step;
             
@@ -247,9 +254,7 @@
                 badge.className = "phase-badge chase";
             }
 
-
             let hReward = 0, sReward = 0;
-
             if(step.rewards) {
                 for(let key in step.rewards) {
                     if(key.startsWith("hider")) hReward += step.rewards[key];
@@ -259,9 +264,7 @@
             document.getElementById('hider-reward').textContent = hReward.toFixed(1);
             document.getElementById('seeker-reward').textContent = sReward.toFixed(1);
 
-
-            ctx.fillStyle = '#f8fafc';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             for (let y = 0; y < replayData.map_size; y++) {
                 for (let x = 0; x < replayData.map_size; x++) {
@@ -269,46 +272,82 @@
                     const px = x * cellSize;
                     const py = y * cellSize;
 
-                    if (cell === 1) { ctx.fillStyle = '#334155'; ctx.fillRect(px, py, cellSize, cellSize); }
-                    else if (cell === 2) { 
-                        ctx.fillStyle = '#d97706'; ctx.fillRect(px, py, cellSize, cellSize); 
-                        ctx.strokeStyle = '#000'; ctx.strokeRect(px, py, cellSize, cellSize);
-                    } else if (cell === 3) { 
-                        ctx.fillStyle = '#fbbf24'; ctx.fillRect(px, py, cellSize, cellSize); 
-                        ctx.strokeStyle = '#000'; ctx.strokeRect(px, py, cellSize, cellSize);
+                    if (cell === 1) { 
+                        ctx.fillStyle = '#334155';
+                        ctx.fillRect(px, py, cellSize, cellSize);
+                        ctx.fillStyle = 'rgba(255,255,255,0.1)';
+                        ctx.fillRect(px, py, cellSize, 4); 
+                        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                        ctx.fillRect(px, py + cellSize - 4, cellSize, 4); 
+                    } 
+                    else if (cell === 2) { // Unlocked Box
+                        drawBox(px, py, '#d97706', '#b45309');
+                    } 
+                    else if (cell === 3) { // Locked Box
+                        drawBox(px, py, '#fbbf24', '#d97706');
                     }
                 }
             }
 
-
-            if (step.hiders) step.hiders.forEach((pos, i) => drawAgent(pos[0], pos[1], '#0ea5e9', `H${i}`));
-            if (step.seekers) step.seekers.forEach((pos, i) => drawAgent(pos[0], pos[1], '#ef4444', `S${i}`));
+            if (step.hiders) step.hiders.forEach((pos, i) => drawAgent(pos[0], pos[1], 'hider', `H${i}`));
+            if (step.seekers) step.seekers.forEach((pos, i) => drawAgent(pos[0], pos[1], 'seeker', `S${i}`));
         }
 
-        function drawAgent(x, y, color, label) {
+        function drawBox(x, y, color, borderColor) {
+            const padding = 4;
+            ctx.fillStyle = borderColor;
+            ctx.fillRect(x + padding, y + padding, cellSize - 2*padding, cellSize - 2*padding);
+            ctx.fillStyle = color;
+            ctx.fillRect(x + padding + 2, y + padding + 2, cellSize - 2*padding - 4, cellSize - 2*padding - 4);
+            
+            ctx.strokeStyle = borderColor;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x + padding, y + padding);
+            ctx.lineTo(x + cellSize - padding, y + cellSize - padding);
+            ctx.moveTo(x + cellSize - padding, y + padding);
+            ctx.lineTo(x + padding, y + cellSize - padding);
+            ctx.stroke();
+        }
+
+
+        const hiderIcon = new Image();
+
+        hiderIcon.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><path fill='white' d='M56 13.641C56 7.222 50.644 2 44.062 2c-5.25 0-9.835 3.388-11.376 8.14a9.768 9.768 0 0 0-1.371 0C29.772 5.388 25.187 2 19.938 2C13.355 2 8 7.222 8 13.641c0 5.455 3.885 10.057 9.1 11.305c-1.628 3.754-4.579 11.734-4.579 20.273c0 .158.007.305.009.457c-.379.316-.75.641-1.095.998c-.703.73-1.344 1.547-1.853 2.486a8.282 8.282 0 0 0-.633 1.508a6.496 6.496 0 0 0-.277 1.68c-.016.582.057 1.17.216 1.729a5.99 5.99 0 0 0 .694 1.553c.589.943 1.363 1.67 2.164 2.264c.401.297.819.566 1.232.803a15.954 15.954 0 0 0 3.994 1.637c1.851.48 3.707.635 5.518.717c1.813.082 3.602.094 5.389.146c1.788.047 3.57.123 5.352.256a92.14 92.14 0 0 1 5.34.549a94.415 94.415 0 0 0-5.275-1.053a116.259 116.259 0 0 0-5.335-.766c-1.784-.221-3.57-.402-5.322-.646c-1.748-.248-3.466-.566-5.033-1.139a13.71 13.71 0 0 1-2.236-1.047c-.35-.207-.698-.432-1.025-.666a9.985 9.985 0 0 1-.928-.742c-.573-.516-1.042-1.084-1.323-1.668c-.282-.582-.373-1.156-.292-1.732s.336-1.168.724-1.736c.132-.193.294-.379.455-.564c.887 4.176 3.093 6.426 6.834 7.053c.739 1.016 1.965 1.656 3.319 1.656h1.475c1.42 0 2.7-.723 3.423-1.818c1.248-.098 2.593-.184 3.97-.184c1.265 0 2.513.074 3.772.17c.72 1.105 2.003 1.832 3.433 1.832h1.476a4.107 4.107 0 0 0 3.294-1.625c5.179-.775 7.505-4.561 7.505-12.105c0-8.547-2.951-16.523-4.579-20.274C52.115 23.697 56 19.096 56 13.641m-44.161 1.165c0-3.863 3.233-7.006 7.207-7.006c3.09 0 5.794 1.914 6.793 4.678c-2.635 2.011-5.06 5.139-7.228 9.322c-3.772-.219-6.772-3.273-6.772-6.994M49.56 45.219c0 8.066-2.672 10.072-6.818 10.346c-.233.861-1.063 1.502-2.061 1.502h-1.476c-1.082 0-1.967-.756-2.104-1.732c-1.615-.133-3.327-.268-5.102-.268c-1.844 0-3.621.145-5.291.283c-.144.969-1.025 1.717-2.103 1.717H23.13c-1.001 0-1.837-.646-2.064-1.516c-4.037-.322-6.626-2.391-6.626-10.332c0-9.559 2.548-16.237 5.092-21.003c1.708-3.199 5.745-9.833 9.042-11.342c2.075-.949 4.616-1.033 6.849-.001c3.293 1.522 7.337 8.146 9.044 11.346c2.544 4.766 5.093 11.445 5.093 21M45.388 21.8c-2.19-4.24-4.568-7.31-7.228-9.327c1-2.761 3.704-4.673 6.792-4.673c3.975 0 7.208 3.143 7.208 7.006c0 3.721-2.999 6.775-6.772 6.994'/><path fill='white' d='M32.001 33.152c-.51 0-2.214.045-2.77.619c-.395.408-.089 1.422.962 2.295c.665.553 1.298.727 1.808.727s1.144-.174 1.807-.727c1.052-.873 1.357-1.887.962-2.295c-.555-.574-2.26-.619-2.769-.619'/><ellipse fill='white' cx='25.429' cy='27.143' rx='2.881' ry='2.823'/><ellipse fill='white' cx='38.57' cy='27.143' rx='2.88' ry='2.823'/><path fill='white' d='M32.975 37.67a2.51 2.51 0 0 0-.792.189c-.242.111-.476.24-.679.42c-.198.172-.405.395-.461.688c.259-.102.51-.127.741-.213c.236-.068.459-.16.683-.246c.219-.1.436-.193.646-.303c.219-.09.4-.248.678-.279c-.197-.242-.552-.272-.816-.256'/></svg>";
+        
+        const seekerIcon = new Image();
+        seekerIcon.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><style type='text/css'>.st0{fill:white;}</style><g><path class='st0' d='M430.762,126.907c-42.384-89.329-67.753-89.329-78.722-89.329c-1.947,0-3.884,0.167-5.785,0.482c-18.1,3.014-41.374,22.031-69.302,56.579h-20.955h-20.974c-27.909-34.548-51.202-53.566-69.301-56.579c-1.891-0.315-3.829-0.482-5.758-0.482h-0.25c-11.108,0-36.412,0.649-78.499,89.329C34.188,164.608-32.49,256.506,18.091,366.094c49.996,108.328,191.425,108.328,237.907,108.328c46.472,0,187.911,0,237.907-108.318C544.495,256.506,477.809,164.608,430.762,126.907z M468.055,354.161c-41.15,89.134-161.411,91.776-212.056,91.776c-50.626,0-170.906-2.642-212.038-91.776c-56.969-123.432,60.121-208.886,60.121-208.886s36.551-79.213,55.875-79.213l1.094,0.093c18.99,3.162,60.14,56.969,60.14,56.969h34.808h34.808c0,0,41.15-53.807,60.14-56.969l1.094-0.093c19.305,0,55.875,79.213,55.875,79.213S525.024,230.729,468.055,354.161z'/><polygon class='st0' points='78.008,314.355 181.746,322.524 182.488,313.057 78.75,304.897'/><polygon class='st0' points='76.2,355.496 77.21,364.935 178.445,354.133 177.434,344.693'/><polygon class='st0' points='330.269,322.524 433.988,314.355 433.247,304.897 329.527,313.057'/><polygon class='st0' points='333.56,354.133 434.796,364.935 435.806,355.496 334.571,344.693'/><path class='st0' d='M317.222,368.467c-7.983,1.91-14.715,2.708-20.324,2.708c-7.446,0-12.832-1.391-16.866-3.422c-5.981-3.059-9.458-7.621-11.841-13.5c-2.327-5.832-3.171-12.851-3.162-19.157c0-3.95,0.333-7.427,0.695-10.329l16.718-16.718c3.078-3.079,4.005-7.714,2.336-11.73c-1.669-4.024-5.582-6.648-9.94-6.648h-37.683c-4.45,0-8.437,2.745-10.032,6.899c-1.614,4.154-0.482,8.864,2.819,11.85l16.096,14.576c0.464,3.115,0.927,7.325,0.918,12.118c0.045,8.438-1.531,18.016-5.954,24.581c-2.216,3.32-5.016,6.018-9.04,8.057c-4.025,2.031-9.42,3.422-16.857,3.422c-5.601,0-12.341-0.798-20.326-2.716c-4.339-1.039-8.697,1.641-9.736,5.971c-1.029,4.339,1.651,8.697,5.981,9.736c8.976,2.142,16.941,3.143,24.081,3.152c9.448,0,17.496-1.808,24.126-5.146c7.779-3.895,13.222-9.866,16.857-16.347c0.52,0.918,0.853,1.864,1.428,2.763c3.551,5.387,8.623,10.246,15.243,13.584c6.639,3.338,14.688,5.156,24.136,5.146c7.14,0,15.104-1.01,24.08-3.162c4.339-1.038,7.009-5.387,5.972-9.726C325.911,370.1,321.553,367.43,317.222,368.467z'/><polygon class='st0' points='152.742,105.711 138.5,141.316 174.106,134.195'/><polygon class='st0' points='359.254,105.711 337.891,134.195 373.496,141.316'/><path class='st0' d='M146.011,241.809c0,13.983,11.349,25.323,25.332,25.323c13.982,0,25.313-11.34,25.313-25.323c0-13.983-11.331-25.322-25.313-25.322C157.36,216.487,146.011,227.826,146.011,241.809z'/><path class='st0' d='M340.663,267.132c13.982,0,25.323-11.34,25.323-25.323c0-13.983-11.341-25.322-25.323-25.322c-13.983,0-25.322,11.34-25.322,25.322C315.341,255.792,326.68,267.132,340.663,267.132z'/></g></svg>";        function drawAgent(x, y, type, label) {
             const centerX = x * cellSize + cellSize / 2;
             const centerY = y * cellSize + cellSize / 2;
+            const color = type === 'hider' ? '#0ea5e9' : '#ef4444';
             
-
             ctx.beginPath();
             ctx.arc(centerX, centerY, cellSize * 2, 0, 2 * Math.PI);
-            ctx.fillStyle = color === '#0ea5e9' ? 'rgba(14, 165, 233, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+            ctx.fillStyle = type === 'hider' ? 'rgba(14, 165, 233, 0.15)' : 'rgba(239, 68, 68, 0.15)';
             ctx.fill();
 
+            ctx.beginPath();
+            ctx.arc(centerX + 3, centerY + 3, cellSize / 2 - 2, 0, 2 * Math.PI);
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.fill();
 
             ctx.beginPath();
-            ctx.arc(centerX, centerY, cellSize / 2 - 4, 0, 2 * Math.PI);
+            ctx.arc(centerX, centerY, cellSize / 2 - 2, 0, 2 * Math.PI);
             ctx.fillStyle = color;
             ctx.fill();
             ctx.lineWidth = 2;
             ctx.strokeStyle = '#fff';
             ctx.stroke();
 
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 12px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(label, centerX, centerY);
+            const iconSize = type === 'seeker' ? 28 : 22; 
+            const iconX = centerX - iconSize / 2;
+            const iconY = centerY - iconSize / 2;
+            
+            if (type === 'hider' && hiderIcon.complete) {
+                ctx.drawImage(hiderIcon, iconX, iconY, iconSize, iconSize);
+            } else if (type === 'seeker' && seekerIcon.complete) {
+                ctx.drawImage(seekerIcon, iconX, iconY, iconSize, iconSize);
+            }
         }
 
         function togglePlay() {
@@ -317,7 +356,7 @@
             
             if (isPlaying) {
                 clearInterval(intervalId);
-                btn.textContent = 'Play';
+                btn.innerHTML = '<i class="fas fa-play"></i> Play';
             } else {
                 intervalId = setInterval(() => {
                     if (currentStep < replayData.steps.length - 1) {
@@ -326,11 +365,11 @@
                         drawFrame(currentStep);
                     } else {
                         clearInterval(intervalId);
-                        btn.textContent = 'Play';
+                        btn.innerHTML = '<i class="fas fa-play"></i> Play';
                         isPlaying = false;
                     }
                 }, speed);
-                btn.textContent = 'Pause';
+                btn.innerHTML = '<i class="fas fa-pause"></i> Pause';
             }
             isPlaying = !isPlaying;
         }
@@ -339,7 +378,7 @@
             clearInterval(intervalId);
             isPlaying = false;
             currentStep = 0;
-            document.getElementById('play-btn').textContent = 'Play';
+            document.getElementById('play-btn').innerHTML = '<i class="fas fa-play"></i> Play';
             document.getElementById('timeline').value = 0;
             drawFrame(0);
         }
