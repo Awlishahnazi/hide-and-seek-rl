@@ -16,9 +16,11 @@ def main():
     parser.add_argument("--vision_radius", type=int, default=5, help="Vision radius for agents")
     args = parser.parse_args()
 
+    # Set seeds
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
 
+    # Create environment and trainer
     env = HideSeekEnv(
         map_size=15,
         n_hiders=args.n_hiders,
@@ -30,23 +32,30 @@ def main():
 
     print(f"Starting training: {args.updates} updates | Team {args.n_hiders}v{args.n_seekers} | Vision {args.vision_radius} | Boxes {args.n_boxes}")
     
-    history = []
-    
-    trainer.train(total_updates=args.updates)
+    # Create a callback to save intermediate models
+    def save_callback(update, trainer):
+        if update % 10 == 0 or update == args.updates - 1:
+            prefix = f"h{args.n_hiders}_s{args.n_seekers}_v{args.vision_radius}_b{args.n_boxes}_seed{args.seed}_update{update}"
+            os.makedirs("results/checkpoints", exist_ok=True)
+            torch.save(trainer.actors["hider"].state_dict(), f"results/checkpoints/hider_actor_{prefix}.pth")
+            torch.save(trainer.actors["seeker"].state_dict(), f"results/checkpoints/seeker_actor_{prefix}.pth")
+            print(f"Saved intermediate checkpoints for update {update}")
+
+    # Run training with callback
+    trainer.train(total_updates=args.updates, save_callback=save_callback)
     
     print("Training complete! Model weights saved.")
     
+    # Save the final models (also handled by the callback for the last update, but keeping this for safety)
     os.makedirs("results/checkpoints", exist_ok=True)
-    
     prefix = f"h{args.n_hiders}_s{args.n_seekers}_v{args.vision_radius}_b{args.n_boxes}_seed{args.seed}"
-    
     hider_path = f"results/checkpoints/hider_actor_{prefix}.pth"
     seeker_path = f"results/checkpoints/seeker_actor_{prefix}.pth"
     
     torch.save(trainer.actors["hider"].state_dict(), hider_path)
     torch.save(trainer.actors["seeker"].state_dict(), seeker_path)
     
-    print(f"Checkpoints saved to:\n- {hider_path}\n- {seeker_path}")
+    print(f"Final Checkpoints saved to:\n- {hider_path}\n- {seeker_path}")
 
 if __name__ == "__main__":
     main()

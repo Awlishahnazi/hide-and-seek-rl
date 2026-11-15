@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hide-and-Seek RL Replay</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-color: #f8fafc;
+            --primary-color: #38bdf8;
+            --wall-color: #334155;
+            --hider-color: #0ea5e9;
+            --seeker-color: #ef4444;
+            --box-color: #d97706;
+            --locked-box-color: #fbbf24;
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: system-ui, -apple-system, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        h1 { color: var(--primary-color); margin-bottom: 20px; }
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: var(--primary-color);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+            transition: 0.2s;
+        }
+        button:hover { background-color: #0ea5e9; }
+        button:disabled { background-color: #475569; cursor: not-allowed; }
+        #status {
+            font-size: 18px;
+            background: var(--card-bg);
+            padding: 8px 15px;
+            border-radius: 6px;
+            border: 1px solid #334155;
+        }
+        .prep { color: #fbbf24; }
+        .chase { color: #ef4444; }
+        canvas {
+            background-color: #000;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Hide-and-Seek RL Replay</h1>
+    
+    <div class="controls">
+        <button id="play-btn" onclick="togglePlay()">Play</button>
+        <button id="restart-btn" onclick="restart()">Restart</button>
+        <span id="status">Loading...</span>
+    </div>
+
+    <canvas id="gameCanvas" width="600" height="600"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const cellSize = 40; // 15x15 map -> 15 * 40 = 600
+
+        let replayData = null;
+        let currentStep = 0;
+        let isPlaying = false;
+        let intervalId = null;
+        let speed = 100; // milliseconds per frame
+
+        // Load the JSON file
+        fetch('replay.json')
+            .then(response => response.json())
+            .then(data => {
+                replayData = data;
+                document.getElementById('status').textContent = "Ready to play!";
+                drawFrame(0);
+            })
+            .catch(error => {
+                console.error("Error loading replay:", error);
+                document.getElementById('status').textContent = "Error loading replay.json";
+            });
+
+        function drawFrame(stepIndex) {
+            if (!replayData || !replayData.steps[stepIndex]) return;
+            
+            const step = replayData.steps[stepIndex];
+            const grid = step.grid;
+            
+            // Clear canvas
+            ctx.fillStyle = '#f8fafc';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Grid
+            for (let y = 0; y < replayData.map_size; y++) {
+                for (let x = 0; x < replayData.map_size; x++) {
+                    const cell = grid[y][x];
+                    const px = x * cellSize;
+                    const py = y * cellSize;
+
+                    if (cell === 1) {
+                        ctx.fillStyle = '#334155'; 
+                        ctx.fillRect(px, py, cellSize, cellSize);
+                    } else if (cell === 2) {
+                        ctx.fillStyle = '#d97706';
+                        ctx.fillRect(px, py, cellSize, cellSize);
+                    } else if (cell === 3) {
+                        ctx.fillStyle = '#fbbf24';
+                        ctx.fillRect(px, py, cellSize, cellSize);
+                    }
+                }
+            }
+
+            // Draw Agents (با استفاده از ساختار جدید)
+            // بررسی می‌کنیم که آیا داده‌ها به صورت آرایه هستند
+            if (step.hiders && Array.isArray(step.hiders)) {
+                step.hiders.forEach((pos, i) => {
+                    drawAgent(pos[0], pos[1], '#0ea5e9', `H${i}`);
+                });
+            }
+
+            if (step.seekers && Array.isArray(step.seekers)) {
+                step.seekers.forEach((pos, i) => {
+                    drawAgent(pos[0], pos[1], '#ef4444', `S${i}`);
+                });
+            }
+
+            // Update Status
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = `${step.is_prep_phase ? 'Phase: PREP (Seekers Frozen)' : 'Phase: CHASE'} | Step: ${step.step}`;
+            statusEl.className = step.is_prep_phase ? 'prep' : 'chase';
+        }
+
+        function drawAgent(x, y, color, label) {
+            const centerX = x * cellSize + cellSize / 2;
+            const centerY = y * cellSize + cellSize / 2;
+            const radius = cellSize / 2 - 4;
+
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#fff';
+            ctx.stroke();
+
+            // Draw Label
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 12px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(label, centerX, centerY);
+        }
+
+        function togglePlay() {
+            if (!replayData) return;
+            
+            if (isPlaying) {
+                clearInterval(intervalId);
+                document.getElementById('play-btn').textContent = 'Play';
+            } else {
+                intervalId = setInterval(() => {
+                    if (currentStep < replayData.steps.length - 1) {
+                        currentStep++;
+                        drawFrame(currentStep);
+                    } else {
+                        clearInterval(intervalId);
+                        document.getElementById('play-btn').textContent = 'Play';
+                        isPlaying = false;
+                    }
+                }, speed);
+                document.getElementById('play-btn').textContent = 'Pause';
+            }
+            isPlaying = !isPlaying;
+        }
+
+        function restart() {
+            clearInterval(intervalId);
+            isPlaying = false;
+            currentStep = 0;
+            document.getElementById('play-btn').textContent = 'Play';
+            drawFrame(0);
+        }
+    </script>
+</body>
+</html>
