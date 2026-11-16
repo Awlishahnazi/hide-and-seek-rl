@@ -8,12 +8,9 @@ from hideseek.env.render import PygameRenderer
 from hideseek.mappo.networks import ActorNetwork
 
 def generate_trained_episode_gif(filename="assets/trained_episode.gif", hider_model_path="results/checkpoints/hider_actor.pth", seeker_model_path="results/checkpoints/seeker_actor.pth"):
-    # 1. Initialize Environment and Renderer
     env = HideSeekEnv(map_size=15)
     renderer = PygameRenderer(cell_size=40)
-    
-    # 2. Load Trained Models
-    # Check if models exist
+
     if not os.path.exists(hider_model_path) or not os.path.exists(seeker_model_path):
         print("Error: Trained models not found. Please run training first.")
         return
@@ -34,13 +31,12 @@ def generate_trained_episode_gif(filename="assets/trained_episode.gif", hider_mo
     seeker_actor.eval()
 
     # 3. Run Episode
-    obs, _ = env.reset(seed=100) # Fixed seed for reproducibility
+    obs, _ = env.reset(seed=100)
     frames = []
     
-    for step in range(200): # Max steps
+    for step in range(200):
         actions_dict = {}
         
-        # Get actions from trained networks
         with torch.no_grad():
             for team, agents in [("hider", [a for a in env.agents if a.startswith("hider")]), 
                                  ("seeker", [a for a in env.agents if a.startswith("seeker")])]:
@@ -56,15 +52,13 @@ def generate_trained_episode_gif(filename="assets/trained_episode.gif", hider_mo
                 else:
                     logits = seeker_actor(batched_obs)
                     
-                actions = torch.argmax(logits, dim=-1) # Deterministic action (best move)
+                actions = torch.argmax(logits, dim=-1) 
                 
                 for i, agent in enumerate(agents):
                     actions_dict[agent] = actions[i].item()
                     
-        # Step env
         obs, rewards, terms, truncs, infos = env.step(actions_dict)
         
-        # Render (we need to access the core to pass to renderer)
         frame = renderer.render_frame(env.core)
         frames.append(frame)
         
@@ -81,5 +75,4 @@ def generate_trained_episode_gif(filename="assets/trained_episode.gif", hider_mo
     print("Done! Check assets/trained_episode.gif")
 
 if __name__ == "__main__":
-    # Ensure you have run `python src/hideseek/train.py --updates 50` first to generate the .pth files!
     generate_trained_episode_gif()

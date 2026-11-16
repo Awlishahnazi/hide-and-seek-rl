@@ -17,11 +17,9 @@ def main():
     parser.add_argument("--max_steps", type=int, default=500, help="Maximum steps per episode")
     args = parser.parse_args()
 
-    # Set seeds
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
 
-    # Create environment and trainer
     env = HideSeekEnv(
         map_size=15,
         n_hiders=args.n_hiders,
@@ -42,12 +40,10 @@ def main():
             torch.save(trainer.actors["seeker"].state_dict(), f"results/checkpoints/seeker_actor_{prefix}.pth")
             print(f"[Checkpoint] Saved models at update {update+1}")
 
-    # Run training with callback
     trainer.train(total_updates=args.updates, save_callback=save_callback)
     
     print("Training complete! Model weights saved.")
     
-    # Save the final models (also handled by the callback for the last update, but keeping this for safety)
     os.makedirs("results/checkpoints", exist_ok=True)
     prefix = f"h{args.n_hiders}_s{args.n_seekers}_v{args.vision_radius}_b{args.n_boxes}_seed{args.seed}"
     hider_path = f"results/checkpoints/hider_actor_{prefix}.pth"
