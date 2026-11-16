@@ -148,6 +148,5 @@ class MAPPOTrainer:
                       f"Hider Reward: {total_rewards['hider']:.1f} | Seeker Reward: {total_rewards['seeker']:.1f} | "
                       f"Loss: {actor_loss.item():.3f}")
             
-            # --- فراخوانی کالبک برای ذخیره مدل‌های میانی ---
             if save_callback:
                 save_callback(update, self)

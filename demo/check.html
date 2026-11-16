@@ -7,11 +7,9 @@
         fetch('replay.json')
             .then(res => res.json())
             .then(data => {
-                // چاپ 5 مرحله اول و 5 مرحله آخر
                 const output = document.getElementById('output');
                 let text = "Total steps: " + data.steps.length + "\n\n";
                 
-                // بررسی مراحل 0 تا 4
                 for (let i = 0; i < 5; i++) {
                     const s = data.steps[i];
                     if (s) {
@@ -19,7 +17,6 @@
                     }
                 }
                 
-                // بررسی مراحل 40 تا 44 (شروع فاز تعقیب)
                 text += "\n--- Phase Transition ---\n";
                 for (let i = 40; i < 45; i++) {
                     const s = data.steps[i];
